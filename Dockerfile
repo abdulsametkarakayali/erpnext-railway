@@ -61,7 +61,7 @@ RUN echo "-> Install nginx, supervisor, mariadb-client, gettext-base, netcat" \
     && echo "-> Remove nginx default site" \
     && rm /etc/nginx/sites-enabled/default \
     && echo "-> Rebuild bench (compile assets)" \
-    && su $systemUser -c "bash -lc 'source ~/.nvm/nvm.sh && nvm use 20 && bench build'" \
+   && su $systemUser -c "PATH=/usr/bin:/usr/local/bin:\$PATH bench build" \
     && echo "-> Snapshot built sites for first-boot assets/apps links" \
     && su $systemUser -c "cp -r /home/$systemUser/$benchFolderName/sites /home/$systemUser/$benchFolderName/built_sites"
 COPY --chown=$systemUser --chmod=0755 railway-entrypoint.sh /usr/local/bin/railway-entrypoint.sh

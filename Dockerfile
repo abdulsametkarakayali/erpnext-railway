@@ -3,6 +3,16 @@
 # Source: pipech/erpnext-docker-debian (Railway pattern)
 # ------------------------------------------
 FROM pipech/erpnext-docker-debian:version-15-latest AS builder
+
+# === EKLENEN KISIM: Node.js 18 -> 20 yükseltme (CRM frontend için gerekli) ===
+USER root
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && npm install -g yarn \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+# === EKLENEN KISIM SONU ===
+
 USER $systemUser
 WORKDIR /home/$systemUser/$benchFolderName
 RUN echo "-> Start builder" \
@@ -10,13 +20,23 @@ RUN echo "-> Start builder" \
     # IPv6 hotfix — Railway private networking is IPv6-only
     # https://docs.railway.com/guides/private-networking#caveats
     && sed -i 's/socket\.AF_INET, socket\.SOCK_STREAM/socket.AF_INET6, socket.SOCK_STREAM/g' /home/frappe/bench/apps/frappe/frappe/utils/connections.py \
-    # === EKLENEN SATIR: Frappe CRM kaynağını bench'e indir ===
     && bench get-app crm \
     && echo "-> Builder done"
+
 # ------------------------------------------
 # Stage 02 — production runtime
 # ------------------------------------------
 FROM frappe/bench:v5.22.9
+
+# === EKLENEN KISIM: runtime image'da da Node 20 gerekli (bench build burada da çalışıyor) ===
+USER root
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && npm install -g yarn \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+# === EKLENEN KISIM SONU ===
+
 ENV systemUser=frappe
 ENV benchFolderName=bench
 COPY --from=builder --chown=$systemUser /home/$systemUser/$benchFolderName /home/$systemUser/$benchFolderName
@@ -39,10 +59,4 @@ RUN echo "-> Install nginx, supervisor, mariadb-client, gettext-base, netcat" \
     && rm /etc/nginx/sites-enabled/default \
     && echo "-> Rebuild bench (compile assets)" \
     && su $systemUser -c "bench build" \
-    && echo "-> Snapshot built sites for first-boot assets/apps links" \
-    && su $systemUser -c "cp -r /home/$systemUser/$benchFolderName/sites /home/$systemUser/$benchFolderName/built_sites"
-COPY --chown=$systemUser --chmod=0755 railway-entrypoint.sh /usr/local/bin/railway-entrypoint.sh
-COPY --chown=$systemUser --chmod=0755 railway-cmd.sh /usr/local/bin/railway-cmd.sh
-ENTRYPOINT ["/usr/local/bin/railway-entrypoint.sh"]
-CMD ["/usr/local/bin/railway-cmd.sh"]
-EXPOSE 80
+    && echo "-> Snapshot built sites for
